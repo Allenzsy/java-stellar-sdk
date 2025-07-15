@@ -32,7 +32,7 @@ public class AddressIdentifier {
     /** 地址类型 */
     private final AddressType type;
 
-    public AddressIdentifier(@NotNull String hexPublicKey, @NonNull String stellarAddress, @NonNull AddressType type) {
+    public AddressIdentifier(@NonNull String hexPublicKey, @NonNull String stellarAddress, @NonNull AddressType type) {
         this.hexPublicKey = hexPublicKey;
         this.stellarAddress = stellarAddress;
         this.type = type;

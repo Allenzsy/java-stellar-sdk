@@ -1,17 +1,15 @@
 package com.safeheron.stellar.core;
 
-import com.safeheron.stellar.entity.AddressIdentifier;
-import com.safeheron.stellar.entity.AddressVerify;
-import com.safeheron.stellar.entity.PublicKeyIdentifier;
+import com.safeheron.stellar.entity.*;
 import okhttp3.OkHttpClient;
-import org.stellar.sdk.Address;
-import org.stellar.sdk.SorobanServer;
-import org.stellar.sdk.StrKey;
-import org.stellar.sdk.TransactionBuilderAccount;
+import org.stellar.sdk.*;
 import org.stellar.sdk.responses.sorobanrpc.GetLedgerEntriesResponse;
 import org.stellar.sdk.xdr.*;
+import org.stellar.sdk.xdr.Asset;
+import org.stellar.sdk.xdr.TrustLineAsset;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -54,6 +52,81 @@ public class RpcClient extends SorobanServer {
         }
         addressFormat.setExistOnChain(isExistOnChain);
         return addressFormat;
+    }
+
+
+    public List<Balance> getBalances(String accountAddress, List<Currency> currencies) {
+        Collections.sort(currencies);
+        ArrayList<LedgerKey> ledgerKeys = new ArrayList<>();
+        ArrayList<Balance> balances = new ArrayList<>();
+        AccountID accountId = KeyPair.fromAccountId(accountAddress).getXdrAccountId();
+        for (Currency currency : currencies) {
+            // 查询 Native 币的余额必须通过查询账户信息获取
+            if (currency.getType() == AssetType.ASSET_TYPE_NATIVE) {
+                LedgerKey.LedgerKeyAccount ledgerKeyAccount = LedgerKey.LedgerKeyAccount.builder()
+                        .accountID(StrKey.encodeToXDRAccountId(accountAddress))
+                        .build();
+                // 创建查询账户需要的 LedgerKey
+                LedgerKey ledgerKey = LedgerKey.builder()
+                        .account(ledgerKeyAccount)
+                        .discriminant(LedgerEntryType.ACCOUNT)
+                        .build();
+                ledgerKeys.add(ledgerKey);
+                continue;
+            }
+            // 查询 Token 币余额需要给定 code 和 issuer
+            org.stellar.sdk.xdr.Asset assetXdr = currency.toXdr();
+            TrustLineAsset trustLineAsset = new TrustLineAsset();
+            trustLineAsset.setDiscriminant(assetXdr.getDiscriminant());
+            trustLineAsset.setAlphaNum4(assetXdr.getAlphaNum4());
+            trustLineAsset.setAlphaNum12(assetXdr.getAlphaNum12());
+            LedgerKey.LedgerKeyTrustLine ledgerKeyTrustLine = LedgerKey.LedgerKeyTrustLine.builder()
+                    .accountID(accountId)
+                    .asset(trustLineAsset)
+                    .build();
+            LedgerKey ledgerKey = LedgerKey.builder()
+                    .trustLine(ledgerKeyTrustLine)
+                    .discriminant(LedgerEntryType.TRUSTLINE)
+                    .build();
+            ledgerKeys.add(ledgerKey);
+        }
+
+        GetLedgerEntriesResponse ledgerEntries = this.getLedgerEntries(ledgerKeys);
+        for (GetLedgerEntriesResponse.LedgerEntryResult ledgerEntryResult : ledgerEntries.getEntries()) {
+            LedgerEntry.LedgerEntryData entryData;
+            try {
+                entryData = LedgerEntry.LedgerEntryData.fromXdrBase64(ledgerEntryResult.getXdr());
+            } catch (IOException e) {
+                throw new IllegalArgumentException("Invalid ledgerEntryData: " + ledgerEntryResult.getXdr(), e);
+            }
+            if (entryData.getAccount() != null) {
+                AccountEntry account = entryData.getAccount();
+                Balance balance = new Balance(account.getBalance().getInt64(), new CurrencyNative());
+                balances.add(balance);
+                continue;
+            }
+            TrustLineEntry trustLine = entryData.getTrustLine();
+            TrustLineAsset trustLineAsset = trustLine.getAsset();
+            Balance balance = new Balance();
+            switch (trustLineAsset.getDiscriminant()) {
+                case ASSET_TYPE_NATIVE:
+                    balance.setCurrency(new CurrencyNative());
+                    break;
+                case ASSET_TYPE_CREDIT_ALPHANUM4:
+                    balance.setCurrency(CurrencyAlphaNum4.fromXdr(trustLineAsset.getAlphaNum4()));
+                    break;
+                case ASSET_TYPE_CREDIT_ALPHANUM12:
+                    balance.setCurrency(CurrencyAlphaNum12.fromXdr(trustLineAsset.getAlphaNum12()));
+                    break;
+            }
+            if (balance.getCurrency() == null) {
+                throw new IllegalArgumentException("Unknown asset type " + trustLineAsset.getDiscriminant());
+            }
+            balance.setBalance(trustLine.getBalance().getInt64());
+            balances.add(balance);
+        }
+
+        return balances;
     }
 
     public Optional<ContractDataEntry> getContractDataEntry(String contractId, SCVal key, Durability durability) {
