@@ -12,11 +12,9 @@ import lombok.Getter;
 @AllArgsConstructor
 public class SignedSignatureDTO {
 
-    /** 签名完成后的数据(hash) */
+    /** 签名完成后的数据(hash), Hex格式 */
     String signedTxHash;
 
-    /** 签名公钥 */
+    /** 签名公钥, Hex格式 */
     String publickKey;
-
-
 }

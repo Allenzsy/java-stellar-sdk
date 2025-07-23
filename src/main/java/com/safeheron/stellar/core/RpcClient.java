@@ -1,11 +1,19 @@
 package com.safeheron.stellar.core;
 
+import com.google.gson.reflect.TypeToken;
 import com.safeheron.stellar.entity.*;
 import okhttp3.OkHttpClient;
 import org.stellar.sdk.*;
+import org.stellar.sdk.exception.ConnectionErrorException;
+import org.stellar.sdk.exception.RequestTimeoutException;
+import org.stellar.sdk.exception.SorobanRpcException;
+import org.stellar.sdk.requests.sorobanrpc.GetTransactionRequest;
+import org.stellar.sdk.requests.sorobanrpc.SendTransactionRequest;
 import org.stellar.sdk.responses.sorobanrpc.GetLedgerEntriesResponse;
+import org.stellar.sdk.responses.sorobanrpc.GetTransactionResponse;
+import org.stellar.sdk.responses.sorobanrpc.SendTransactionResponse;
+import org.stellar.sdk.responses.sorobanrpc.SorobanRpcResponse;
 import org.stellar.sdk.xdr.*;
-import org.stellar.sdk.xdr.Asset;
 import org.stellar.sdk.xdr.TrustLineAsset;
 
 import java.io.IOException;
@@ -129,6 +137,55 @@ public class RpcClient extends SorobanServer {
         return balances;
     }
 
+    /**
+     * 提交交易上链，Soroban-RPC 会 simply validates and enqueues the transaction，客户端需要再通过
+     * SorobanServer#getTransaction 进一步查询交易状态，例如从 PENDING 转为 SUCCESS
+     *
+     * @param signedTransaction 已签名序列化后的交易
+     * @return 返回txHash,和离线计算返回的txHash相同
+     * @throws org.stellar.sdk.exception.NetworkException All the exceptions below are subclasses of
+     *     NetworkError
+     * @throws SorobanRpcException If the Soroban-RPC instance returns an error response.
+     * @throws RequestTimeoutException If the request timed out.
+     * @throws ConnectionErrorException When the request cannot be executed due to cancellation or
+     *     connectivity problems, etc.
+     * @see <a
+     *     href="https://developers.stellar.org/docs/data/rpc/api-reference/methods/sendTransaction"
+     *     target="_blank">sendTransaction documentation</a>
+     */
+    public String sendTransaction(String signedTransaction) {
+        // TODO: In the future, it may be necessary to consider FeeBumpTransaction.
+        SendTransactionRequest params = new SendTransactionRequest(signedTransaction);
+        SendTransactionResponse transactionResponse = this.sendRequest(
+                "sendTransaction", params, new TypeToken<SorobanRpcResponse<SendTransactionResponse>>() {
+                });
+
+        return transactionResponse.getHash();
+    }
+
+
+    public GetTransactionResponse getTransactionReceipt(String txHash) {
+        GetTransactionRequest params = new GetTransactionRequest(txHash);
+        return this.sendRequest(
+                "getTransaction", params, new TypeToken<SorobanRpcResponse<GetTransactionResponse>>() {});
+    }
+
+    /**
+     * 读取合约的链上存储
+     * @param contractId 合约地址，Encoded as Stellar Contract Address. e.g.
+     *    "CCJZ5DGASBWQXR5MPFCJXMBI333XE5U3FSJTNQU7RIKE3P5GN2K2WYD5"
+     * @param key SCVal（Stellar Contract Value）类型
+     * @param durability The "durability keyspace" that this ledger key belongs to, which is either
+     *    {@link Durability#TEMPORARY} or {@link Durability#PERSISTENT}.
+     * @return A {@link GetLedgerEntriesResponse.LedgerEntryResult} object containing the ledger entry
+     *     result.
+     * @throws org.stellar.sdk.exception.NetworkException All the exceptions below are subclasses of
+     *     NetworkError
+     * @throws SorobanRpcException If the Soroban-RPC instance returns an error response.
+     * @throws RequestTimeoutException If the request timed out.
+     * @throws ConnectionErrorException When the request cannot be executed due to cancellation or
+     *     connectivity problems, etc.
+     */
     public Optional<ContractDataEntry> getContractDataEntry(String contractId, SCVal key, Durability durability) {
 
         ContractDataDurability contractDataDurability;
@@ -168,4 +225,5 @@ public class RpcClient extends SorobanServer {
         }
         return Optional.of(ledgerEntryData.getContractData());
     }
+
 }

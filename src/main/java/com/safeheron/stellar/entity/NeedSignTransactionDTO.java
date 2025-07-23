@@ -14,7 +14,7 @@ import java.util.List;
 @AllArgsConstructor
 public class NeedSignTransactionDTO {
 
-    /** Hex格式, 未签名交易序列化 */
+    /** 未签名交易序列化, Hex格式 */
     String unsignedTransaction;
 
     /** 待签名数据, 若存在多签则有多个 */

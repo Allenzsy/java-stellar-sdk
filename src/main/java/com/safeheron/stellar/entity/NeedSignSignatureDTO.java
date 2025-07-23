@@ -12,10 +12,9 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public class NeedSignSignatureDTO {
-
-    /** 需要此地址签名, From地址 */
-    String address;
-
     /** 交易的hash值, Hex格式 */
     String txHash;
+
+    /** 需要此地址签名, From地址, Hex格式*/
+    String address;
 }

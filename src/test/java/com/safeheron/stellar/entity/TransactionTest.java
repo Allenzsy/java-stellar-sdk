@@ -1,0 +1,106 @@
+package com.safeheron.stellar.entity;
+
+import com.safeheron.stellar.core.RpcClient;
+import org.junit.Assert;
+import org.junit.Test;
+import org.stellar.sdk.*;
+import org.stellar.sdk.operations.Operation;
+import org.stellar.sdk.operations.PaymentOperation;
+
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+/**
+ * @Author zsy
+ * @Date 2025/7/3 16:03
+ * @Description: 构造交易测试
+ */
+public class TransactionTest {
+
+    @Test
+    public void test_send_transaction(){
+        String sorobanTestUri = "https://soroban-testnet.stellar.org";
+        final RpcClient server = new RpcClient(sorobanTestUri);
+
+        KeyPair source = KeyPair.fromSecretSeed("SBXVE62FBBXFUV3QXLJVUZDI4TW6YHWHEXBSJK5HW54UW5HA2IVC4VWA");
+        // GD6VYNE4NY5RHWQ7NHYPQC4CPSUDSYKVOI5A3NVUF5ZTLJ7MAEHNBDSJ
+        KeyPair target = KeyPair.fromSecretSeed("SDUDSUG7ZJQVK4A5ULXIHXWSYS3IDNTKHPLFMBCXJDRQOW2YIZ44AWRV");
+
+        TransactionBuilderAccount account = server.getAccount(source.getAccountId());
+
+        PaymentOperation paymentOperation = PaymentOperation
+                .builder()
+                .destination(target.getAccountId())
+                .asset(new AssetTypeNative())
+                .amount(BigDecimal.valueOf(3))
+                .build();
+        TransactionPreconditions preconditions = TransactionPreconditions.builder().timeBounds(new TimeBounds(0, 0)).build();
+
+        Transaction transaction = new Transaction(source.getAccountId(),
+                Transaction.MIN_BASE_FEE * 1,
+                account.getIncrementedSequenceNumber(),
+                new Operation[]{paymentOperation},
+                null,
+                preconditions,
+                null,
+                Network.TESTNET);
+        account.incrementSequenceNumber();
+        try {
+            NeedSignTransactionDTO needSignTransactionDTO = transaction.getUnsignedTransaction(
+                    Stream.of(Util.bytesToHex(source.getPublicKey())).collect(Collectors.toList()));
+
+            // 模拟签名过程
+            String unsignedTransaction = needSignTransactionDTO.getUnsignedTransaction();
+            List<NeedSignSignatureDTO> needSignSignatures = needSignTransactionDTO.getUnsignedSignatures();
+            List<SignedSignatureDTO> list = new ArrayList<SignedSignatureDTO>();
+            for (NeedSignSignatureDTO e : needSignSignatures) {
+                byte[] signedTxHash = source.sign(Util.hexToBytes(e.getTxHash()));
+                list.add(new SignedSignatureDTO(Util.bytesToHex(signedTxHash), e.getAddress()));
+            }
+
+            SignedTransactionDTO signedTransaction = Transaction.getSignedTransaction(unsignedTransaction, list, Network.TESTNET);
+            String offLineTxHash = signedTransaction.getTxHash();
+            String onLineTxHash = server.sendTransaction(signedTransaction.getSignedTransaction());
+            Assert.assertEquals(offLineTxHash, onLineTxHash);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        //
+        // account1.
+        //
+        // // 构造交易
+        // TransactionBuilder transactionBuilder = new TransactionBuilder(account, Network.TESTNET);
+        // Transaction transaction = transactionBuilder
+        //         .addOperation(PaymentOperation
+        //                 .builder()
+        //                 .destination(target.getAccountId())
+        //                 .asset(new AssetTypeNative())
+        //                 .amount(BigDecimal.valueOf(3))
+        //                 .build())
+        //         .setBaseFee(Transaction.MIN_BASE_FEE)
+        //         .setTimeout(TransactionPreconditions.TIMEOUT_INFINITE)
+        //         .build();
+        // // 获取未签名交易的序列化，HEX格式
+        // String needToSignHex = transaction.hashHex();
+        // System.out.println("未签名交易的序列化：" + needToSignHex);
+        // // 交易签名
+        // // transaction.sign(source); 此方法只适用于能直接拿到私钥的场景
+        // // 实际项目需要将 needToSignHex 送给签名服务器，完成签名，然后转为 org.stellar.sdk.xdr.Signature ---> DecoratedSignature 类型
+        // DecoratedSignature decoratedSignature = source.signDecorated(Util.hexToBytes(needToSignHex));
+        // transaction.addSignature(decoratedSignature);
+        // // 提交上链
+        // SendTransactionResponse transactionResponse = server.sendTransaction(transaction);
+        //
+        // // SendTransactionResponse(status=PENDING, errorResultXdr=null, diagnosticEventsXdr=null, hash=9d53276a790de874cb62da5c1d532d262c335240c14803c475f6d74e8fdf3a06, latestLedger=325735, latestLedgerCloseTime=1751897592)
+        // // 返回的 txHash
+        // final String hash = transactionResponse.getHash();
+        // System.out.println(transactionResponse);
+
+
+    }
+
+}

@@ -27,6 +27,7 @@ spotless {
 }
 
 repositories {
+    maven { url = uri("https://maven.aliyun.com/repository/public") };
     mavenCentral()
 }
 
@@ -51,6 +52,7 @@ dependencies {
 tasks {
     test {
         useJUnitPlatform()
+        jvmArgs("-DsocksProxyHost=127.0.0.1", "-DsocksProxyPort=10808")
     }
 
     val sourcesJar by creating(Jar::class) {

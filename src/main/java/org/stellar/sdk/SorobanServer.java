@@ -2,64 +2,23 @@ package org.stellar.sdk;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import java.io.Closeable;
-import java.io.IOException;
-import java.net.SocketTimeoutException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import okhttp3.HttpUrl;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
+import okhttp3.*;
 import org.jetbrains.annotations.Nullable;
-import org.stellar.sdk.exception.AccountNotFoundException;
-import org.stellar.sdk.exception.ConnectionErrorException;
-import org.stellar.sdk.exception.PrepareTransactionException;
-import org.stellar.sdk.exception.RequestTimeoutException;
-import org.stellar.sdk.exception.SorobanRpcException;
+import org.stellar.sdk.exception.*;
 import org.stellar.sdk.operations.InvokeHostFunctionOperation;
 import org.stellar.sdk.operations.Operation;
 import org.stellar.sdk.requests.ClientIdentificationInterceptor;
 import org.stellar.sdk.requests.ResponseHandler;
-import org.stellar.sdk.requests.sorobanrpc.GetEventsRequest;
-import org.stellar.sdk.requests.sorobanrpc.GetLedgerEntriesRequest;
-import org.stellar.sdk.requests.sorobanrpc.GetLedgersRequest;
-import org.stellar.sdk.requests.sorobanrpc.GetTransactionRequest;
-import org.stellar.sdk.requests.sorobanrpc.GetTransactionsRequest;
-import org.stellar.sdk.requests.sorobanrpc.SendTransactionRequest;
-import org.stellar.sdk.requests.sorobanrpc.SimulateTransactionRequest;
-import org.stellar.sdk.requests.sorobanrpc.SorobanRpcRequest;
-import org.stellar.sdk.responses.sorobanrpc.GetEventsResponse;
-import org.stellar.sdk.responses.sorobanrpc.GetFeeStatsResponse;
-import org.stellar.sdk.responses.sorobanrpc.GetHealthResponse;
-import org.stellar.sdk.responses.sorobanrpc.GetLatestLedgerResponse;
-import org.stellar.sdk.responses.sorobanrpc.GetLedgerEntriesResponse;
-import org.stellar.sdk.responses.sorobanrpc.GetLedgersResponse;
-import org.stellar.sdk.responses.sorobanrpc.GetNetworkResponse;
-import org.stellar.sdk.responses.sorobanrpc.GetSACBalanceResponse;
-import org.stellar.sdk.responses.sorobanrpc.GetTransactionResponse;
-import org.stellar.sdk.responses.sorobanrpc.GetTransactionsResponse;
-import org.stellar.sdk.responses.sorobanrpc.GetVersionInfoResponse;
-import org.stellar.sdk.responses.sorobanrpc.SendTransactionResponse;
-import org.stellar.sdk.responses.sorobanrpc.SimulateTransactionResponse;
-import org.stellar.sdk.responses.sorobanrpc.SorobanRpcResponse;
+import org.stellar.sdk.requests.sorobanrpc.*;
+import org.stellar.sdk.responses.sorobanrpc.*;
 import org.stellar.sdk.scval.Scv;
-import org.stellar.sdk.xdr.ContractDataDurability;
-import org.stellar.sdk.xdr.LedgerEntry;
-import org.stellar.sdk.xdr.LedgerEntryType;
-import org.stellar.sdk.xdr.LedgerKey;
-import org.stellar.sdk.xdr.SCVal;
-import org.stellar.sdk.xdr.SorobanAuthorizationEntry;
-import org.stellar.sdk.xdr.SorobanTransactionData;
+import org.stellar.sdk.xdr.*;
+
+import java.io.Closeable;
+import java.io.IOException;
+import java.net.SocketTimeoutException;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Main class used to connect to the Soroban-RPC instance and exposes an interface for requests to
@@ -713,8 +672,8 @@ public class SorobanServer implements Closeable {
    * @throws ConnectionErrorException When the request cannot be executed due to cancellation or
    *     connectivity problems, etc.
    */
-  private <T, R> R sendRequest(
-      String method, @Nullable T params, TypeToken<SorobanRpcResponse<R>> responseType) {
+  protected <T, R> R sendRequest(
+          String method, @Nullable T params, TypeToken<SorobanRpcResponse<R>> responseType) {
     String requestId = generateRequestId();
     ResponseHandler<SorobanRpcResponse<R>> responseHandler = new ResponseHandler<>(responseType);
     SorobanRpcRequest<T> sorobanRpcRequest = new SorobanRpcRequest<>(requestId, method, params);
