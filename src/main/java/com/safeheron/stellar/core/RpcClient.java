@@ -7,12 +7,11 @@ import org.stellar.sdk.*;
 import org.stellar.sdk.exception.ConnectionErrorException;
 import org.stellar.sdk.exception.RequestTimeoutException;
 import org.stellar.sdk.exception.SorobanRpcException;
+import org.stellar.sdk.requests.sorobanrpc.GetLedgersRequest;
 import org.stellar.sdk.requests.sorobanrpc.GetTransactionRequest;
+import org.stellar.sdk.requests.sorobanrpc.GetTransactionsRequest;
 import org.stellar.sdk.requests.sorobanrpc.SendTransactionRequest;
-import org.stellar.sdk.responses.sorobanrpc.GetLedgerEntriesResponse;
-import org.stellar.sdk.responses.sorobanrpc.GetTransactionResponse;
-import org.stellar.sdk.responses.sorobanrpc.SendTransactionResponse;
-import org.stellar.sdk.responses.sorobanrpc.SorobanRpcResponse;
+import org.stellar.sdk.responses.sorobanrpc.*;
 import org.stellar.sdk.xdr.*;
 import org.stellar.sdk.xdr.TrustLineAsset;
 
@@ -164,10 +163,44 @@ public class RpcClient extends SorobanServer {
     }
 
 
-    public GetTransactionResponse getTransactionReceipt(String txHash) {
+    public TransactionReceiptVO getTransactionReceipt(String txHash, Network network) {
         GetTransactionRequest params = new GetTransactionRequest(txHash);
-        return this.sendRequest(
-                "getTransaction", params, new TypeToken<SorobanRpcResponse<GetTransactionResponse>>() {});
+        GetTransactionResponse getTransactionResponse = this.sendRequest(
+                "getTransaction", params, new TypeToken<SorobanRpcResponse<GetTransactionResponse>>() {
+                });
+
+        return TransactionReceiptVO.parseFromResponse(getTransactionResponse, network);
+    }
+
+
+    public BlockTxnsVO getTransctionsByblock(String blockHeight, GetTransactionsRequest.PaginationOptions page) {
+        final GetTransactionsRequest getTransactionsRequest = GetTransactionsRequest.builder()
+                .startLedger(Long.valueOf(blockHeight))
+                .pagination(page).build();
+
+        final GetTransactionsResponse transactionsResponse = this.getTransactions(getTransactionsRequest);
+        transactionsResponse.
+    }
+
+    /**
+     * 查询最新高度
+     * @return BlockHeader, 包含最新账本序号, 账本 hash, 账本关闭时间, 前一个账本 hash
+     */
+    public BlockHeader getLatestBlock(){
+        final GetLatestLedgerResponse ledgerResponse = this.getLatestLedger();
+        GetLedgersRequest.PaginationOptions paginationOptions = GetLedgersRequest.PaginationOptions.builder()
+                .limit(1L).build();
+        GetLedgersRequest getLedgersRequest = GetLedgersRequest.builder()
+                .startLedger(ledgerResponse.getSequence().longValue())
+                .pagination(paginationOptions).build();
+        final GetLedgersResponse ledgers = this.getLedgers(getLedgersRequest);
+        final GetLedgersResponse.LedgerInfo ledgerInfo = ledgers.getLedgers().get(0);
+        final Hash previousLedgerHash = ledgerInfo.parseHeaderXdr().getHeader().getPreviousLedgerHash();
+        final BlockHeader blockHeader = new BlockHeader(ledgerInfo.getSequence().toString(),
+                ledgerInfo.getHash(),
+                ledgerInfo.getLedgerCloseTime(),
+                Util.bytesToHex(previousLedgerHash.getHash()));
+        return blockHeader;
     }
 
     /**

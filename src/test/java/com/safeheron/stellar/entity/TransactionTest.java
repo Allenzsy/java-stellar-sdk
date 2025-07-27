@@ -1,6 +1,7 @@
 package com.safeheron.stellar.entity;
 
 import com.safeheron.stellar.core.RpcClient;
+import com.safeheron.stellar.util.TransactionUtil;
 import org.junit.Assert;
 import org.junit.Test;
 import org.stellar.sdk.*;
@@ -50,7 +51,8 @@ public class TransactionTest {
                 Network.TESTNET);
         account.incrementSequenceNumber();
         try {
-            NeedSignTransactionDTO needSignTransactionDTO = transaction.getUnsignedTransaction(
+            NeedSignTransactionDTO needSignTransactionDTO = TransactionUtil.getUnsignedTransaction(
+                    transaction,
                     Stream.of(Util.bytesToHex(source.getPublicKey())).collect(Collectors.toList()));
 
             // 模拟签名过程
@@ -62,7 +64,7 @@ public class TransactionTest {
                 list.add(new SignedSignatureDTO(Util.bytesToHex(signedTxHash), e.getAddress()));
             }
 
-            SignedTransactionDTO signedTransaction = Transaction.getSignedTransaction(unsignedTransaction, list, Network.TESTNET);
+            SignedTransactionDTO signedTransaction = TransactionUtil.getSignedTransaction(unsignedTransaction, list, Network.TESTNET);
             String offLineTxHash = signedTransaction.getTxHash();
             String onLineTxHash = server.sendTransaction(signedTransaction.getSignedTransaction());
             Assert.assertEquals(offLineTxHash, onLineTxHash);
@@ -103,4 +105,13 @@ public class TransactionTest {
 
     }
 
+    @Test
+    public void test_getTransaction() {
+        String txHash = "97b8e82bc643d2475abbbc50afa558878a24e28ff21cb3c79c4b64d6e504e214";
+        String sorobanTestUri = "https://soroban-testnet.stellar.org";
+        final RpcClient server = new RpcClient(sorobanTestUri);
+
+        TransactionReceiptVO receiptVO = server.getTransactionReceipt(txHash, Network.TESTNET);
+        System.out.println(receiptVO);
+    }
 }

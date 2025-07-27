@@ -73,7 +73,7 @@ public class Transaction extends AbstractTransaction {
    * @param sorobanData The Soroban data for the transaction.
    * @param network The network that the transaction is to be submitted to.
    */
-  Transaction(
+  public Transaction(
       @NonNull String sourceAccount,
       long fee,
       long sequenceNumber,
