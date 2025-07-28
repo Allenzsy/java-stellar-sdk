@@ -2,6 +2,7 @@ package com.safeheron.stellar.core;
 
 import com.google.gson.reflect.TypeToken;
 import com.safeheron.stellar.entity.*;
+import com.safeheron.stellar.util.TransactionUtil;
 import okhttp3.OkHttpClient;
 import org.stellar.sdk.*;
 import org.stellar.sdk.exception.ConnectionErrorException;
@@ -163,23 +164,53 @@ public class RpcClient extends SorobanServer {
     }
 
 
-    public TransactionReceiptVO getTransactionReceipt(String txHash, Network network) {
+    /**
+     * 获取指定交易
+     * @param txHash 交易 hash, Hex 格式
+     * @param network Stellar 网络标识 {@link Network}
+     * @return
+     */
+    public TransactionVO getTransactionReceipt(String txHash, Network network) {
         GetTransactionRequest params = new GetTransactionRequest(txHash);
         GetTransactionResponse getTransactionResponse = this.sendRequest(
                 "getTransaction", params, new TypeToken<SorobanRpcResponse<GetTransactionResponse>>() {
                 });
 
-        return TransactionReceiptVO.parseFromResponse(getTransactionResponse, network);
+        return TransactionUtil.parseFromResponse(getTransactionResponse, network);
     }
 
+    /**
+     * 获取指定账本中的交易
+     * @param blockHeight 账本序号 ledger sequence
+     * @param page 翻页参数
+     * @param network Stellar 网络标识 {@link Network}
+     * @return BlockTxnsVO
+     */
+    public BlockTxnsVO getTransctionsByblock(String blockHeight, GetTransactionsRequest.PaginationOptions page, Network network) {
+        // 获取指定账本信息
+        GetLedgersRequest.PaginationOptions paginationOptions = GetLedgersRequest.PaginationOptions.builder()
+                .limit(1L).build();
+        GetLedgersRequest getLedgersRequest = GetLedgersRequest.builder()
+                .startLedger(Long.parseLong(blockHeight))
+                .pagination(paginationOptions).build();
+        GetLedgersResponse ledgers = this.getLedgers(getLedgersRequest);
+        GetLedgersResponse.LedgerInfo ledgerInfo = ledgers.getLedgers().get(0);
+        Hash previousLedgerHash = ledgerInfo.parseHeaderXdr().getHeader().getPreviousLedgerHash();
 
-    public BlockTxnsVO getTransctionsByblock(String blockHeight, GetTransactionsRequest.PaginationOptions page) {
-        final GetTransactionsRequest getTransactionsRequest = GetTransactionsRequest.builder()
+        // 获取指定账本的所有交易
+        GetTransactionsRequest getTransactionsRequest = GetTransactionsRequest.builder()
                 .startLedger(Long.valueOf(blockHeight))
                 .pagination(page).build();
 
-        final GetTransactionsResponse transactionsResponse = this.getTransactions(getTransactionsRequest);
-        transactionsResponse.
+        GetTransactionsResponse transactionsResponse = this.getTransactions(getTransactionsRequest);
+        List<TransactionVO> transactionVOs = TransactionUtil.parseFromResponse(transactionsResponse, network);
+
+        // 组装返回
+        return new BlockTxnsVO(ledgerInfo.getSequence(),
+                ledgerInfo.getHash(),
+                Util.bytesToHex(previousLedgerHash.getHash()).toLowerCase(),
+                ledgerInfo.getLedgerCloseTime(),
+                transactionVOs);
     }
 
     /**
@@ -187,19 +218,19 @@ public class RpcClient extends SorobanServer {
      * @return BlockHeader, 包含最新账本序号, 账本 hash, 账本关闭时间, 前一个账本 hash
      */
     public BlockHeader getLatestBlock(){
-        final GetLatestLedgerResponse ledgerResponse = this.getLatestLedger();
+        GetLatestLedgerResponse ledgerResponse = this.getLatestLedger();
         GetLedgersRequest.PaginationOptions paginationOptions = GetLedgersRequest.PaginationOptions.builder()
                 .limit(1L).build();
         GetLedgersRequest getLedgersRequest = GetLedgersRequest.builder()
                 .startLedger(ledgerResponse.getSequence().longValue())
                 .pagination(paginationOptions).build();
-        final GetLedgersResponse ledgers = this.getLedgers(getLedgersRequest);
-        final GetLedgersResponse.LedgerInfo ledgerInfo = ledgers.getLedgers().get(0);
-        final Hash previousLedgerHash = ledgerInfo.parseHeaderXdr().getHeader().getPreviousLedgerHash();
-        final BlockHeader blockHeader = new BlockHeader(ledgerInfo.getSequence().toString(),
+        GetLedgersResponse ledgers = this.getLedgers(getLedgersRequest);
+        GetLedgersResponse.LedgerInfo ledgerInfo = ledgers.getLedgers().get(0);
+        Hash previousLedgerHash = ledgerInfo.parseHeaderXdr().getHeader().getPreviousLedgerHash();
+        BlockHeader blockHeader = new BlockHeader(ledgerInfo.getSequence().toString(),
                 ledgerInfo.getHash(),
                 ledgerInfo.getLedgerCloseTime(),
-                Util.bytesToHex(previousLedgerHash.getHash()));
+                Util.bytesToHex(previousLedgerHash.getHash()).toLowerCase());
         return blockHeader;
     }
 

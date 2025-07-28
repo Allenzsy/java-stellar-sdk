@@ -111,7 +111,7 @@ public class TransactionTest {
         String sorobanTestUri = "https://soroban-testnet.stellar.org";
         final RpcClient server = new RpcClient(sorobanTestUri);
 
-        TransactionReceiptVO receiptVO = server.getTransactionReceipt(txHash, Network.TESTNET);
+        TransactionVO receiptVO = server.getTransactionReceipt(txHash, Network.TESTNET);
         System.out.println(receiptVO);
     }
 }

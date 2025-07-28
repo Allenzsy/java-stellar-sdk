@@ -1,17 +1,19 @@
 package com.safeheron.stellar.entity;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import java.util.List;
 
 /**
  * @Author Allenzsy
- * @Date 2025/7/28 2:27
+ * @Date 2025/7/22 2:27
  * @Description:
  */
 @Getter
 @Setter
+@AllArgsConstructor
+@NoArgsConstructor
+@ToString
 public class BlockTxnsVO {
 
     /**
@@ -33,7 +35,7 @@ public class BlockTxnsVO {
     /**
      * 解析出来的交易集合
      */
-    List<TransactionReceiptVO> transactions;
+    List<TransactionVO> transactions;
 
 
 }

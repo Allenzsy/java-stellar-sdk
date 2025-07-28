@@ -1,19 +1,17 @@
 package com.safeheron.stellar.entity;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 /**
  * @Author Allenzsy
- * @Date 2025/7/28 2:11
+ * @Date 2025/7/22 2:11
  * @Description:
  */
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
+@ToString
 public class BlockHeader {
 
     /**

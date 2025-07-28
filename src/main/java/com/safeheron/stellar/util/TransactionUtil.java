@@ -1,23 +1,26 @@
 package com.safeheron.stellar.util;
 
 import com.safeheron.stellar.entity.*;
+import com.safeheron.stellar.enums.TransactionStatus;
 import org.stellar.sdk.AbstractTransaction;
 import org.stellar.sdk.Network;
 import org.stellar.sdk.Transaction;
 import org.stellar.sdk.Util;
-import org.stellar.sdk.xdr.DecoratedSignature;
-import org.stellar.sdk.xdr.Signature;
-import org.stellar.sdk.xdr.SignatureHint;
-import org.stellar.sdk.xdr.TransactionEnvelope;
+import org.stellar.sdk.operations.PaymentOperation;
+import org.stellar.sdk.responses.sorobanrpc.GetTransactionResponse;
+import org.stellar.sdk.responses.sorobanrpc.GetTransactionsResponse;
+import org.stellar.sdk.xdr.*;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * @Author Allenzsy
- * @Date 2025/7/28 1:52
+ * @Date 2025/7/23 1:52
  * @Description:
  */
 public class TransactionUtil {
@@ -79,6 +82,83 @@ public class TransactionUtil {
         signedTransactionDTO.setTxHash(transaction.hashHex());
         signedTransactionDTO.setSignedTransaction(transaction.toEnvelopeXdrBase64());
         return signedTransactionDTO;
+    }
+
+
+    public static TransactionVO parseFromResponse(GetTransactionResponse response, Network network) {
+        final TransactionVO txVO = new TransactionVO();
+        txVO.setStatus(TransactionStatus.valueOf(response.getStatus().name()));
+        txVO.setTxHash(response.getTxHash());
+        txVO.setLatestLedger(response.getLatestLedger());
+        txVO.setLatestLedgerCloseTime(response.getLatestLedgerCloseTime());
+        txVO.setOldestLedger(response.getOldestLedger());
+        txVO.setOldestLedgerCloseTime(response.getOldestLedgerCloseTime());
+        txVO.setApplicationOrder(response.getApplicationOrder());
+        txVO.setFeeBump(response.getFeeBump());
+        txVO.setEnvelopeXdr(response.getEnvelopeXdr());
+        txVO.setResultXdr(response.getResultXdr());
+        txVO.setResultMetaXdr(response.getResultMetaXdr());
+        txVO.setLedger(response.getLedger());
+        txVO.setCreatedAt(response.getCreatedAt());
+        // 如果不存在交易, 无需继续解析交易相关信息
+        if (txVO.getStatus() == TransactionStatus.NOT_FOUND) {
+            return txVO;
+        }
+
+        try {
+            TransactionResult transactionResult = TransactionResult.fromXdrBase64(txVO.getResultXdr());
+            txVO.setGasFee(transactionResult.getFeeCharged().getInt64());
+            txVO.setChainMsg(transactionResult.getResult().toString());
+
+            Transaction transaction = (Transaction) AbstractTransaction.fromEnvelopeXdr(response.getEnvelopeXdr(), network);
+            txVO.setFromAddress(transaction.getSourceAccount());
+            List<PaymentOperation> paymentOperations = Stream.of(transaction.getOperations())
+                    .filter(PaymentOperation.class::isInstance)
+                    .map(PaymentOperation.class::cast)
+                    .collect(Collectors.toList());
+            txVO.setPayments(paymentOperations);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return txVO;
+    }
+
+    public static List<TransactionVO> parseFromResponse(GetTransactionsResponse response, Network network) {
+        List<TransactionVO> transactionVOs = new ArrayList<>();
+        final List<GetTransactionsResponse.Transaction> transactionList = response.getTransactions();
+        for (GetTransactionsResponse.Transaction tx : transactionList) {
+            final TransactionVO txVO = new TransactionVO();
+            txVO.setStatus(TransactionStatus.valueOf(tx.getStatus().name()));
+            txVO.setTxHash(tx.getTxHash());
+            txVO.setLatestLedger(response.getLatestLedger());
+            txVO.setLatestLedgerCloseTime(response.getLatestLedgerCloseTimestamp());
+            txVO.setOldestLedger(response.getOldestLedger());
+            txVO.setOldestLedgerCloseTime(response.getOldestLedgerCloseTimestamp());
+            txVO.setApplicationOrder(tx.getApplicationOrder());
+            txVO.setFeeBump(tx.getFeeBump());
+            txVO.setEnvelopeXdr(tx.getEnvelopeXdr());
+            txVO.setResultXdr(tx.getResultXdr());
+            txVO.setResultMetaXdr(tx.getResultMetaXdr());
+            txVO.setLedger(tx.getLedger());
+            txVO.setCreatedAt(tx.getCreatedAt());
+            try {
+                TransactionResult transactionResult = TransactionResult.fromXdrBase64(txVO.getResultXdr());
+                txVO.setGasFee(transactionResult.getFeeCharged().getInt64());
+                txVO.setChainMsg(transactionResult.getResult().toString());
+                Transaction transaction = (Transaction) AbstractTransaction.fromEnvelopeXdr(tx.getEnvelopeXdr(), network);
+                txVO.setFromAddress(transaction.getSourceAccount());
+                List<PaymentOperation> paymentOperations = Stream.of(transaction.getOperations())
+                        .filter(PaymentOperation.class::isInstance)
+                        .map(PaymentOperation.class::cast)
+                        .collect(Collectors.toList());
+                txVO.setPayments(paymentOperations);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            transactionVOs.add(txVO);
+        }
+
+        return transactionVOs;
     }
 
 }
