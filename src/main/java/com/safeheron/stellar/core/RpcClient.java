@@ -5,6 +5,7 @@ import com.safeheron.stellar.entity.*;
 import com.safeheron.stellar.util.TransactionUtil;
 import okhttp3.OkHttpClient;
 import org.stellar.sdk.*;
+import org.stellar.sdk.Transaction;
 import org.stellar.sdk.exception.ConnectionErrorException;
 import org.stellar.sdk.exception.RequestTimeoutException;
 import org.stellar.sdk.exception.SorobanRpcException;
@@ -232,6 +233,28 @@ public class RpcClient extends SorobanServer {
                 ledgerInfo.getLedgerCloseTime(),
                 Util.bytesToHex(previousLedgerHash.getHash()).toLowerCase());
         return blockHeader;
+    }
+
+    /**
+     *
+     * @param transaction 交易对象
+     * @param isContractTx 交易是否调用合约
+     * @return Fee
+     */
+    public Fee getNetworkFee(Transaction transaction, boolean isContractTx) {
+        GetFeeStatsResponse feeStats = this.getFeeStats();
+        Long p50 = feeStats.getInclusionFee().getP50();
+        Long pMost = feeStats.getInclusionFee().getMode();
+        Long baseInclusionFee = Math.max(p50, pMost);
+        p50 = feeStats.getSorobanInclusionFee().getP50();
+        pMost = feeStats.getSorobanInclusionFee().getMode();
+        Long baseSorobanInclusionFee = Math.max(p50, pMost);
+        Fee fee = new Fee(baseSorobanInclusionFee, baseInclusionFee, 0L);
+        if (!isContractTx) {
+            fee.setTotalFee(baseInclusionFee * transaction.getOperations().length);
+            return fee;
+        }
+        return fee;
     }
 
     /**

@@ -39,7 +39,6 @@ public class RpcClientTest {
 
         final BlockTxnsVO blockTxnsVO = server.getTransctionsByblock(height.toString(),
                 GetTransactionsRequest.PaginationOptions.builder().limit(0L).build(), Network.TESTNET);
-        System.out.println(blockTxnsVO);
         Assert.assertEquals(blockHash, blockTxnsVO.getBlockHash());
     }
 

@@ -33,14 +33,16 @@ public class TransactionTest {
 
         TransactionBuilderAccount account = server.getAccount(source.getAccountId());
 
+        // 创建转账操作
         PaymentOperation paymentOperation = PaymentOperation
                 .builder()
                 .destination(target.getAccountId())
                 .asset(new AssetTypeNative())
-                .amount(BigDecimal.valueOf(3))
+                .amount(BigDecimal.valueOf(3)) // 1.0000000
                 .build();
+        // 创建预条件,
         TransactionPreconditions preconditions = TransactionPreconditions.builder().timeBounds(new TimeBounds(0, 0)).build();
-
+        // 创建交易对象
         Transaction transaction = new Transaction(source.getAccountId(),
                 Transaction.MIN_BASE_FEE * 1,
                 account.getIncrementedSequenceNumber(),
@@ -50,7 +52,9 @@ public class TransactionTest {
                 null,
                 Network.TESTNET);
         account.incrementSequenceNumber();
+
         try {
+            // 获取待签名交易, 包括未签名的交易序列化, 未签名的交易hash等
             NeedSignTransactionDTO needSignTransactionDTO = TransactionUtil.getUnsignedTransaction(
                     transaction,
                     Stream.of(Util.bytesToHex(source.getPublicKey())).collect(Collectors.toList()));
@@ -60,6 +64,7 @@ public class TransactionTest {
             List<NeedSignSignatureDTO> needSignSignatures = needSignTransactionDTO.getUnsignedSignatures();
             List<SignedSignatureDTO> list = new ArrayList<SignedSignatureDTO>();
             for (NeedSignSignatureDTO e : needSignSignatures) {
+                // 签名交易 hash
                 byte[] signedTxHash = source.sign(Util.hexToBytes(e.getTxHash()));
                 list.add(new SignedSignatureDTO(Util.bytesToHex(signedTxHash), e.getAddress()));
             }
@@ -67,6 +72,7 @@ public class TransactionTest {
             SignedTransactionDTO signedTransaction = TransactionUtil.getSignedTransaction(unsignedTransaction, list, Network.TESTNET);
             String offLineTxHash = signedTransaction.getTxHash();
             String onLineTxHash = server.sendTransaction(signedTransaction.getSignedTransaction());
+            // 验证
             Assert.assertEquals(offLineTxHash, onLineTxHash);
         } catch (IOException e) {
             throw new RuntimeException(e);
