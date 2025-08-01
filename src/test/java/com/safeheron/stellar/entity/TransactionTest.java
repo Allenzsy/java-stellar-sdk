@@ -5,6 +5,8 @@ import com.safeheron.stellar.util.TransactionUtil;
 import org.junit.Assert;
 import org.junit.Test;
 import org.stellar.sdk.*;
+import org.stellar.sdk.exception.AccountNotFoundException;
+import org.stellar.sdk.operations.InvokeHostFunctionOperation;
 import org.stellar.sdk.operations.Operation;
 import org.stellar.sdk.operations.PaymentOperation;
 
@@ -119,5 +121,29 @@ public class TransactionTest {
 
         TransactionVO receiptVO = server.getTransactionReceipt(txHash, Network.TESTNET);
         System.out.println(receiptVO);
+    }
+
+    @Test
+    public void test_send_sorobanTransaction() {
+        // 发起合约调用的账户, 需要用私钥签名
+        KeyPair source = KeyPair.fromSecretSeed("SBXVE62FBBXFUV3QXLJVUZDI4TW6YHWHEXBSJK5HW54UW5HA2IVC4VWA");
+        // stellar-rpc
+        RpcClient server = new RpcClient("https://soroban-testnet.stellar.org");
+        // 合约地址
+        String contractAddress = "CBUKCX5U2YUBUVUVOCYUWMPVR6AV72FK73ZQFMHAUI6NUVJEH5MELSQP";
+
+        TransactionBuilderAccount sourceAccount = null;
+        try {
+            sourceAccount = server.getAccount(source.getAccountId());
+        } catch (AccountNotFoundException e) {
+            throw new RuntimeException("Account not found, please activate it first");
+        }
+
+        // 创建合约调用的操作
+        InvokeHostFunctionOperation operation =
+                InvokeHostFunctionOperation.invokeContractFunctionOperationBuilder(
+                                contractAddress, "hello", null)
+                        .build();
+
     }
 }
