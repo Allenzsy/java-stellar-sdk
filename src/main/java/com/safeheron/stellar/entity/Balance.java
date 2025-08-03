@@ -2,6 +2,7 @@ package com.safeheron.stellar.entity;
 
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 
 /**
  * @Author zsy
@@ -10,19 +11,18 @@ import lombok.Setter;
  */
 @Getter
 @Setter
+@ToString
 public class Balance {
 
-    int minUnit;
-    Long balance;
+    // 余额, 单位是最小单位 1 Stroop = 0.0000001 XLM
+    Long value;
     Currency currency;
 
     public Balance() {
-        this.minUnit = 7;
     }
 
-    public Balance(Long balance, Currency currency) {
-        this.minUnit = 7;
-        this.balance = balance;
+    public Balance(Long value, Currency currency) {
+        this.value = value;
         this.currency = currency;
     }
 

@@ -21,12 +21,12 @@ public class PublicKeyIdentifier {
     CurveType curveType;
 
     public PublicKeyIdentifier(String hexBytes, CurveType curveType) {
-        this.hexBytes = hexBytes;
+        this.hexBytes = hexBytes.toLowerCase();
         this.curveType = curveType;
     }
 
     public PublicKeyIdentifier(String hexBytes) {
-        this.hexBytes = hexBytes;
+        this.hexBytes = hexBytes.toLowerCase();
         this.curveType = CurveType.PUBLIC_KEY_TYPE_ED25519;
     }
 

@@ -6,6 +6,7 @@ import com.safeheron.stellar.util.TransactionUtil;
 import okhttp3.OkHttpClient;
 import org.stellar.sdk.*;
 import org.stellar.sdk.Transaction;
+import org.stellar.sdk.exception.AccountNotFoundException;
 import org.stellar.sdk.exception.ConnectionErrorException;
 import org.stellar.sdk.exception.RequestTimeoutException;
 import org.stellar.sdk.exception.SorobanRpcException;
@@ -39,31 +40,41 @@ public class RpcClient extends SorobanServer {
         super(serverURI, httpClient);
     }
 
+    /**
+     * 链上验证地址是否存在
+     * @param address 地址
+     * @return 链上验证地址的结果
+     */
     public AddressVerify validAddressOnChain(AddressIdentifier address) {
         AddressVerify addressFormat = AddressIdentifier.validAddressFormat(address);
         if (!addressFormat.isFormatCorrect()) {
             return addressFormat;
         }
         boolean isExistOnChain;
-        try {
-            if (addressFormat.isAccountAddress()) {
+        if (addressFormat.isAccountAddress()) {
+            try {
                 TransactionBuilderAccount account = this.getAccount(address.getStellarAddress());
-                isExistOnChain = account != null && address.equals(account.getAccountId());
-            } else {
-                SCVal scVal = new SCVal();
-                scVal.setDiscriminant(SCValType.SCV_LEDGER_KEY_CONTRACT_INSTANCE);
-                final Optional<ContractDataEntry> contractData =
-                        this.getContractDataEntry(address.getStellarAddress(), scVal, Durability.PERSISTENT);
-                isExistOnChain = contractData.isPresent();
+                isExistOnChain = account != null && address.getStellarAddress().equals(account.getAccountId());
+            } catch (AccountNotFoundException ex) {
+                isExistOnChain = false;
             }
-        } catch (Exception e) {
-            throw e;
+        } else {
+            SCVal scVal = new SCVal();
+            scVal.setDiscriminant(SCValType.SCV_LEDGER_KEY_CONTRACT_INSTANCE);
+            final Optional<ContractDataEntry> contractData =
+                    this.getContractDataEntry(address.getStellarAddress(), scVal, Durability.PERSISTENT);
+            isExistOnChain = contractData.isPresent();
         }
         addressFormat.setExistOnChain(isExistOnChain);
         return addressFormat;
     }
 
-
+    /**
+     * 获取某一账户指定币种的余额
+     * @param accountAddress 账户地址
+     * @param currencies 指定的币种
+     * @return 返回某一账户指定币种的余额
+     */
     public List<Balance> getBalances(String accountAddress, List<Currency> currencies) {
         Collections.sort(currencies);
         ArrayList<LedgerKey> ledgerKeys = new ArrayList<>();
@@ -71,7 +82,7 @@ public class RpcClient extends SorobanServer {
         AccountID accountId = KeyPair.fromAccountId(accountAddress).getXdrAccountId();
         for (Currency currency : currencies) {
             // 查询 Native 币的余额必须通过查询账户信息获取
-            if (currency.getType() == AssetType.ASSET_TYPE_NATIVE) {
+            if (currency.getAsset().getType() == AssetType.ASSET_TYPE_NATIVE) {
                 LedgerKey.LedgerKeyAccount ledgerKeyAccount = LedgerKey.LedgerKeyAccount.builder()
                         .accountID(StrKey.encodeToXDRAccountId(accountAddress))
                         .build();
@@ -84,14 +95,10 @@ public class RpcClient extends SorobanServer {
                 continue;
             }
             // 查询 Token 币余额需要给定 code 和 issuer
-            org.stellar.sdk.xdr.Asset assetXdr = currency.toXdr();
-            TrustLineAsset trustLineAsset = new TrustLineAsset();
-            trustLineAsset.setDiscriminant(assetXdr.getDiscriminant());
-            trustLineAsset.setAlphaNum4(assetXdr.getAlphaNum4());
-            trustLineAsset.setAlphaNum12(assetXdr.getAlphaNum12());
+            final org.stellar.sdk.TrustLineAsset asset = new org.stellar.sdk.TrustLineAsset(currency.getAsset());
             LedgerKey.LedgerKeyTrustLine ledgerKeyTrustLine = LedgerKey.LedgerKeyTrustLine.builder()
                     .accountID(accountId)
-                    .asset(trustLineAsset)
+                    .asset(asset.toXdr())
                     .build();
             LedgerKey ledgerKey = LedgerKey.builder()
                     .trustLine(ledgerKeyTrustLine)
@@ -100,6 +107,7 @@ public class RpcClient extends SorobanServer {
             ledgerKeys.add(ledgerKey);
         }
 
+        // 在账本中获取余额
         GetLedgerEntriesResponse ledgerEntries = this.getLedgerEntries(ledgerKeys);
         for (GetLedgerEntriesResponse.LedgerEntryResult ledgerEntryResult : ledgerEntries.getEntries()) {
             LedgerEntry.LedgerEntryData entryData;
@@ -108,35 +116,22 @@ public class RpcClient extends SorobanServer {
             } catch (IOException e) {
                 throw new IllegalArgumentException("Invalid ledgerEntryData: " + ledgerEntryResult.getXdr(), e);
             }
+            // 由于 native 币是从账户信息中获取, 因此需要判断返回类型是不是 Account
             if (entryData.getAccount() != null) {
                 AccountEntry account = entryData.getAccount();
-                Balance balance = new Balance(account.getBalance().getInt64(), new CurrencyNative());
+                Balance balance = new Balance(account.getBalance().getInt64(), new Currency(new AssetTypeNative()));
                 balances.add(balance);
                 continue;
             }
+            // token 币从 trustLine 类型中获取
             TrustLineEntry trustLine = entryData.getTrustLine();
             TrustLineAsset trustLineAsset = trustLine.getAsset();
-            Balance balance = new Balance();
-            switch (trustLineAsset.getDiscriminant()) {
-                case ASSET_TYPE_NATIVE:
-                    balance.setCurrency(new CurrencyNative());
-                    break;
-                case ASSET_TYPE_CREDIT_ALPHANUM4:
-                    balance.setCurrency(CurrencyAlphaNum4.fromXdr(trustLineAsset.getAlphaNum4()));
-                    break;
-                case ASSET_TYPE_CREDIT_ALPHANUM12:
-                    balance.setCurrency(CurrencyAlphaNum12.fromXdr(trustLineAsset.getAlphaNum12()));
-                    break;
-            }
-            if (balance.getCurrency() == null) {
-                throw new IllegalArgumentException("Unknown asset type " + trustLineAsset.getDiscriminant());
-            }
-            balance.setBalance(trustLine.getBalance().getInt64());
+            Balance balance = new Balance(trustLine.getBalance().getInt64(), new Currency(AssetTypeCreditAlphaNum4.fromXdr(trustLineAsset.getAlphaNum4())));
             balances.add(balance);
         }
-
         return balances;
     }
+
 
     /**
      * 提交交易上链，Soroban-RPC 会 simply validates and enqueues the transaction，客户端需要再通过
@@ -169,7 +164,7 @@ public class RpcClient extends SorobanServer {
      * 获取指定交易
      * @param txHash 交易 hash, Hex 格式
      * @param network Stellar 网络标识 {@link Network}
-     * @return
+     * @return TransactionVO
      */
     public TransactionVO getTransactionReceipt(String txHash, Network network) {
         GetTransactionRequest params = new GetTransactionRequest(txHash);
@@ -228,20 +223,45 @@ public class RpcClient extends SorobanServer {
         GetLedgersResponse ledgers = this.getLedgers(getLedgersRequest);
         GetLedgersResponse.LedgerInfo ledgerInfo = ledgers.getLedgers().get(0);
         Hash previousLedgerHash = ledgerInfo.parseHeaderXdr().getHeader().getPreviousLedgerHash();
-        BlockHeader blockHeader = new BlockHeader(ledgerInfo.getSequence().toString(),
+        return new BlockHeader(ledgerInfo.getSequence().toString(),
                 ledgerInfo.getHash(),
                 ledgerInfo.getLedgerCloseTime(),
                 Util.bytesToHex(previousLedgerHash.getHash()).toLowerCase());
-        return blockHeader;
     }
 
     /**
-     *
-     * @param transaction 交易对象
-     * @param isContractTx 交易是否调用合约
-     * @return Fee
+     * 预估调用合约的交易的手续费, 包含基础手续费和总体手续费
+     * @param transaction 交易对象, 传入此方法的 transaction 对象无需签名.
+     * @return Fee 基础手续费和手续费总和
      */
-    public Fee getNetworkFee(Transaction transaction, boolean isContractTx) {
+    public Fee getNetworkFee(Transaction transaction) {
+        // 必须是调用合约的交易
+        if (!transaction.isSorobanTransaction()) {
+            throw new IllegalArgumentException(
+                    "unsupported transaction: must contain exactly one InvokeHostFunctionOperation, BumpSequenceOperation, or RestoreFootprintOperation");
+        }
+        Fee fee = this.getNetworkFee(1);
+        Transaction txToGetFee = new Transaction(
+                transaction.getSourceAccount(),
+                fee.getPreSorobanInclusionFee(),
+                transaction.getSequenceNumber(),
+                transaction.getOperations(),
+                transaction.getMemo(),
+                transaction.getPreconditions(),
+                transaction.getSorobanData(),
+                transaction.getNetwork());
+        // 不会提交交易,  只是预估手续费并赋值 SorobanTransactionData 对象
+        final Transaction tx = this.prepareTransaction(txToGetFee);
+        fee.setTotalFee(tx.getFee());
+        return fee;
+    }
+
+    /**
+     * 预估非调用合约的交易的手续费, 包含基础手续费和总体手续费
+     * @param numOfOP 交易中操作的数量
+     * @return Fee 基础手续费和手续费总和
+     */
+    public Fee getNetworkFee(int numOfOP) {
         GetFeeStatsResponse feeStats = this.getFeeStats();
         Long p50 = feeStats.getInclusionFee().getP50();
         Long pMost = feeStats.getInclusionFee().getMode();
@@ -249,30 +269,25 @@ public class RpcClient extends SorobanServer {
         p50 = feeStats.getSorobanInclusionFee().getP50();
         pMost = feeStats.getSorobanInclusionFee().getMode();
         Long baseSorobanInclusionFee = Math.max(p50, pMost);
-        Fee fee = new Fee(baseSorobanInclusionFee, baseInclusionFee, 0L);
-        if (!isContractTx) {
-            fee.setTotalFee(baseInclusionFee * transaction.getOperations().length);
-            return fee;
-        }
-        return fee;
+        return new Fee(baseSorobanInclusionFee, baseInclusionFee, baseInclusionFee * numOfOP);
     }
 
-    /**
-     * 读取合约的链上存储
-     * @param contractId 合约地址，Encoded as Stellar Contract Address. e.g.
-     *    "CCJZ5DGASBWQXR5MPFCJXMBI333XE5U3FSJTNQU7RIKE3P5GN2K2WYD5"
-     * @param key SCVal（Stellar Contract Value）类型
-     * @param durability The "durability keyspace" that this ledger key belongs to, which is either
-     *    {@link Durability#TEMPORARY} or {@link Durability#PERSISTENT}.
-     * @return A {@link GetLedgerEntriesResponse.LedgerEntryResult} object containing the ledger entry
-     *     result.
-     * @throws org.stellar.sdk.exception.NetworkException All the exceptions below are subclasses of
-     *     NetworkError
-     * @throws SorobanRpcException If the Soroban-RPC instance returns an error response.
-     * @throws RequestTimeoutException If the request timed out.
-     * @throws ConnectionErrorException When the request cannot be executed due to cancellation or
-     *     connectivity problems, etc.
-     */
+        /**
+         * 读取合约的链上存储
+         * @param contractId 合约地址，Encoded as Stellar Contract Address. e.g.
+         *    "CCJZ5DGASBWQXR5MPFCJXMBI333XE5U3FSJTNQU7RIKE3P5GN2K2WYD5"
+         * @param key SCVal（Stellar Contract Value）类型
+         * @param durability The "durability keyspace" that this ledger key belongs to, which is either
+         *    {@link Durability#TEMPORARY} or {@link Durability#PERSISTENT}.
+         * @return A {@link GetLedgerEntriesResponse.LedgerEntryResult} object containing the ledger entry
+         *     result.
+         * @throws org.stellar.sdk.exception.NetworkException All the exceptions below are subclasses of
+         *     NetworkError
+         * @throws SorobanRpcException If the Soroban-RPC instance returns an error response.
+         * @throws RequestTimeoutException If the request timed out.
+         * @throws ConnectionErrorException When the request cannot be executed due to cancellation or
+         *     connectivity problems, etc.
+         */
     public Optional<ContractDataEntry> getContractDataEntry(String contractId, SCVal key, Durability durability) {
 
         ContractDataDurability contractDataDurability;

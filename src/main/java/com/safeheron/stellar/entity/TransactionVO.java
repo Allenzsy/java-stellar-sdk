@@ -1,6 +1,5 @@
 package com.safeheron.stellar.entity;
 
-import com.safeheron.stellar.enums.TransactionStatus;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
@@ -89,7 +88,11 @@ public class TransactionVO {
     ///**  批量转账相同txHash 有不一样的index */
     //String transactionIdex;
 
-
+    public enum TransactionStatus {
+        NOT_FOUND,
+        SUCCESS,
+        FAILED
+    }
 
 
 }

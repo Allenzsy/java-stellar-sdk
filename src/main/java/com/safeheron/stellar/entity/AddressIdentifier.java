@@ -40,12 +40,12 @@ public class AddressIdentifier {
 
     public static List<AddressIdentifier> derive(PublicKeyIdentifier publicKeyIdentifier) {
         String key = publicKeyIdentifier.getHexBytes();
-        if (key == null || key.length() < 64 || key.length() > 66) {
+        if (key == null || key.length() < 64 || key.length() > 66 || key.length() == 65 || !key.startsWith("0x")) {
             throw new IllegalArgumentException(
                     String.format("Unsupported address value, address length is: %s", key == null ? "null" : key.length() + ""));
         }
-        key = key.startsWith("0x") ? key.substring(2) : key;
 
+        key = key.startsWith("0x") ? key.substring(2) : key;
         final byte[] keyBytes = Hex.decode(key);
         final List<AddressIdentifier> list = new ArrayList<>();
         list.add(new AddressIdentifier(key, StrKey.encodeEd25519PublicKey(keyBytes), AddressType.ACCOUNT));

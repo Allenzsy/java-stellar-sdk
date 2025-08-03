@@ -31,5 +31,4 @@ public class AddressVerify {
     /** 地址在链上是否存在 */
     boolean isExistOnChain;
 
-
 }

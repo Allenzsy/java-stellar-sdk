@@ -1,7 +1,6 @@
 package com.safeheron.stellar.util;
 
 import com.safeheron.stellar.entity.*;
-import com.safeheron.stellar.enums.TransactionStatus;
 import org.stellar.sdk.AbstractTransaction;
 import org.stellar.sdk.Network;
 import org.stellar.sdk.Transaction;
@@ -87,7 +86,7 @@ public class TransactionUtil {
 
     public static TransactionVO parseFromResponse(GetTransactionResponse response, Network network) {
         final TransactionVO txVO = new TransactionVO();
-        txVO.setStatus(TransactionStatus.valueOf(response.getStatus().name()));
+        txVO.setStatus(TransactionVO.TransactionStatus.valueOf(response.getStatus().name()));
         txVO.setTxHash(response.getTxHash());
         txVO.setLatestLedger(response.getLatestLedger());
         txVO.setLatestLedgerCloseTime(response.getLatestLedgerCloseTime());
@@ -101,7 +100,7 @@ public class TransactionUtil {
         txVO.setLedger(response.getLedger());
         txVO.setCreatedAt(response.getCreatedAt());
         // 如果不存在交易, 无需继续解析交易相关信息
-        if (txVO.getStatus() == TransactionStatus.NOT_FOUND) {
+        if (txVO.getStatus() == TransactionVO.TransactionStatus.NOT_FOUND) {
             return txVO;
         }
 
@@ -128,7 +127,7 @@ public class TransactionUtil {
         final List<GetTransactionsResponse.Transaction> transactionList = response.getTransactions();
         for (GetTransactionsResponse.Transaction tx : transactionList) {
             final TransactionVO txVO = new TransactionVO();
-            txVO.setStatus(TransactionStatus.valueOf(tx.getStatus().name()));
+            txVO.setStatus(TransactionVO.TransactionStatus.valueOf(tx.getStatus().name()));
             txVO.setTxHash(tx.getTxHash());
             txVO.setLatestLedger(response.getLatestLedger());
             txVO.setLatestLedgerCloseTime(response.getLatestLedgerCloseTimestamp());
