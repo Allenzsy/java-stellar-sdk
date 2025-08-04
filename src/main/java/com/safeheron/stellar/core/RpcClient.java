@@ -27,7 +27,7 @@ import java.util.Optional;
 /**
  * @Author Allenzsy
  * @Date 2025/7/10 0:18
- * @Description: 链接 Stellar RPC-API 的客户端
+ * @Description: 连接 Stellar RPC-API 的客户端
  */
 public class RpcClient extends SorobanServer {
 

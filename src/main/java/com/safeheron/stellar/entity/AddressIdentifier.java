@@ -1,12 +1,9 @@
 package com.safeheron.stellar.entity;
 
-import kotlin.collections.ArrayDeque;
-import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NonNull;
 import org.bouncycastle.util.encoders.Hex;
-import org.jetbrains.annotations.NotNull;
 import org.stellar.sdk.Address.AddressType;
 import org.stellar.sdk.StrKey;
 import org.stellar.sdk.xdr.CryptoKeyType;
@@ -14,12 +11,11 @@ import org.stellar.sdk.xdr.MuxedAccount;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * @Author Allenzsy
  * @Date 2025/7/10 1:57
- * @Description:
+ * @Description: 由 hex 格式公钥转为账户地址和合约地址
  */
 @EqualsAndHashCode
 @Getter

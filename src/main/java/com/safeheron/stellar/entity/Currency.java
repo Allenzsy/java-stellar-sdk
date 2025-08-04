@@ -10,7 +10,7 @@ import org.stellar.sdk.AssetTypeNative;
 /**
  * @Author Allenzsy
  * @Date 2025/8/4 1:38
- * @Description:
+ * @Description: 币种
  */
 @Getter
 @NoArgsConstructor

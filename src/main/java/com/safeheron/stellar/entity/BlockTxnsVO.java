@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * @Author Allenzsy
  * @Date 2025/7/22 2:27
- * @Description:
+ * @Description: 某一区块(Stellar中也叫账本)包含的所有交易
  */
 @Getter
 @Setter
@@ -36,6 +36,5 @@ public class BlockTxnsVO {
      * 解析出来的交易集合
      */
     List<TransactionVO> transactions;
-
 
 }

@@ -8,7 +8,7 @@ import lombok.ToString;
 /**
  * @Author Allenzsy
  * @Date 2025/6/11 23:44
- * @Description:
+ * @Description: 地址验证结果
  */
 @AllArgsConstructor
 @Getter

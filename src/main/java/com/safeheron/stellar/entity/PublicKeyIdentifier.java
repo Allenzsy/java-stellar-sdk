@@ -9,7 +9,7 @@ import org.stellar.sdk.xdr.Uint256;
 /**
  * @Author Allenzsy
  * @Date 2025/7/10 1:43
- * @Description:
+ * @Description: 公钥
  */
 @Getter
 public class PublicKeyIdentifier {

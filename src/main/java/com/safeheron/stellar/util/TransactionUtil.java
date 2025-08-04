@@ -20,7 +20,7 @@ import java.util.stream.Stream;
 /**
  * @Author Allenzsy
  * @Date 2025/7/23 1:52
- * @Description:
+ * @Description: 交易相关工具类
  */
 public class TransactionUtil {
 

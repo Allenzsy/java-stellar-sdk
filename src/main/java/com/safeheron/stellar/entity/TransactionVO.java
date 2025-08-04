@@ -10,7 +10,7 @@ import java.util.List;
 /**
  * @Author Allenzsy
  * @Date 2025/7/21 17:27
- * @Description:
+ * @Description: 链上查询的交易
  */
 @Getter
 @Setter
