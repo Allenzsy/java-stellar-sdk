@@ -149,7 +149,7 @@ public class RpcClient extends SorobanServer {
      *     href="https://developers.stellar.org/docs/data/rpc/api-reference/methods/sendTransaction"
      *     target="_blank">sendTransaction documentation</a>
      */
-    public String sendTransaction(String signedTransaction) {
+    public String submit(String signedTransaction) {
         // TODO: In the future, it may be necessary to consider FeeBumpTransaction.
         SendTransactionRequest params = new SendTransactionRequest(signedTransaction);
         SendTransactionResponse transactionResponse = this.sendRequest(
@@ -161,7 +161,7 @@ public class RpcClient extends SorobanServer {
 
 
     /**
-     * 获取指定交易
+     * 根据 txHash 获取指定交易
      * @param txHash 交易 hash, Hex 格式
      * @param network Stellar 网络标识 {@link Network}
      * @return TransactionVO
@@ -213,7 +213,7 @@ public class RpcClient extends SorobanServer {
      * 查询最新高度
      * @return BlockHeader, 包含最新账本序号, 账本 hash, 账本关闭时间, 前一个账本 hash
      */
-    public BlockHeader getLatestBlock(){
+    public BlockHeader getLatestBlock() {
         GetLatestLedgerResponse ledgerResponse = this.getLatestLedger();
         GetLedgersRequest.PaginationOptions paginationOptions = GetLedgersRequest.PaginationOptions.builder()
                 .limit(1L).build();

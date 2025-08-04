@@ -75,7 +75,7 @@ public class TransactionTest {
 
             SignedTransactionDTO signedTransaction = TransactionUtil.getSignedTransaction(unsignedTransaction, list, Network.TESTNET);
             String offLineTxHash = signedTransaction.getTxHash();
-            String onLineTxHash = server.sendTransaction(signedTransaction.getSignedTransaction());
+            String onLineTxHash = server.submit(signedTransaction.getSignedTransaction());
             // 验证
             Assert.assertEquals(offLineTxHash, onLineTxHash);
             TransactionVO receiptVO = server.getTransactionReceipt(onLineTxHash, Network.TESTNET);
@@ -156,7 +156,7 @@ public class TransactionTest {
 
                 SignedTransactionDTO signedTransaction = TransactionUtil.getSignedTransaction(unsignedTransaction, signedSignatures, Network.TESTNET);
                 String offLineTxHash = signedTransaction.getTxHash();
-                String onLineTxHash = server.sendTransaction(signedTransaction.getSignedTransaction());
+                String onLineTxHash = server.submit(signedTransaction.getSignedTransaction());
                 // 验证
                 Assert.assertEquals(offLineTxHash, onLineTxHash);
             } catch (IOException e) {

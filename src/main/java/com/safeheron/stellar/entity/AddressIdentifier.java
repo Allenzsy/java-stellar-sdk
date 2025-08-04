@@ -23,8 +23,10 @@ public class AddressIdentifier {
 
     /** 原始公钥值 (未转换, 十六进制格式) */
     private final String hexPublicKey;
+
     /** Stellar 地址值 G... or C... */
     private final String stellarAddress;
+
     /** 地址类型 */
     private final AddressType type;
 
@@ -34,6 +36,11 @@ public class AddressIdentifier {
         this.type = type;
     }
 
+    /**
+     * 通过 Hex 格式公钥创建地址
+     * @param publicKeyIdentifier 公钥
+     * @return 多种类型的地址
+     */
     public static List<AddressIdentifier> derive(PublicKeyIdentifier publicKeyIdentifier) {
         String key = publicKeyIdentifier.getHexBytes();
         if (key == null || key.length() < 64 || key.length() > 66 || key.length() == 65 || !key.startsWith("0x")) {
@@ -50,7 +57,7 @@ public class AddressIdentifier {
     }
 
     /**
-     * 验证地址格式
+     * 验证地址格式, 离线
      * @param address Stellar 地址字符串，G..., C..., M...
      * @return AddressVerify 地址验证结果 (并不验证链上是否存在)
      */
